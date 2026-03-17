@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Scanner de Produtos</title>
+
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
+<style>
+
+body{
+font-family: Arial;
+background:#f3f4f6;
+margin:0;
+padding:20px;
+text-align:center;
+}
+
+.container{
+max-width:400px;
+margin:auto;
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+video{
+width:100%;
+border-radius:10px;
+margin-top:10px;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+background:#2563eb;
+color:white;
+font-size:16px;
+border-radius:8px;
+cursor:pointer;
+}
+
+.resultado{
+margin-top:20px;
+padding:15px;
+border-radius:8px;
+background:#f9fafb;
+border:1px solid #e5e7eb;
+}
+
+.produto{
+font-size:18px;
+font-weight:bold;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>📷 Scanner de Produto</h2>
+
+<video id="video"></video>
+
+<button onclick="iniciarScanner()">Iniciar Scanner</button>
+
+<div id="resultado"></div>
+
+</div>
+
+<script>
+
+let codeReader
+
+function iniciarScanner(){
+
+codeReader = new ZXing.BrowserBarcodeReader()
+
+codeReader.decodeFromVideoDevice(null,'video',(result,err)=>{
+
+if(result){
+
+const codigo = result.text
+
+mostrarProduto(codigo)
+
+codeReader.reset()
+
+}
+
+})
+
+}
+
+function mostrarProduto(codigo){
+
+const resultado = document.getElementById("resultado")
+
+if(codigo === "7894900530025"){
+
+resultado.innerHTML = `
+<div class="resultado">
+<div class="produto">💧 Garrafa Água 1 Litro</div>
+<div>Código: ${codigo}</div>
+</div>
+`
+
+}else{
+
+resultado.innerHTML = `
+<div class="resultado">
+Produto não encontrado
+<br>
+Código lido: ${codigo}
+</div>
+`
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
