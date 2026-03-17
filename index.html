@@ -1,301 +1,104 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scanner PWA - Leitura Automática</title>
 
-  <!-- ZXing Browser -->
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    * { box-sizing: border-box; }
+<title>Scanner Universal</title>
 
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f3f4f6;
-      color: #111827;
-    }
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
 
-    .app {
-      max-width: 420px;
-      margin: 0 auto;
-      min-height: 100vh;
-      background: #fff;
-      padding: 16px;
-    }
+<style>
 
-    h1 {
-      margin: 8px 0 6px;
-      font-size: 24px;
-    }
+body{
+font-family: Arial;
+background:#f4f6f9;
+text-align:center;
+padding:20px;
+}
 
-    .sub {
-      margin: 0 0 16px;
-      color: #6b7280;
-      font-size: 14px;
-    }
+video{
+width:100%;
+max-width:400px;
+border-radius:10px;
+border:1px solid #ccc;
+}
 
-    .camera-box {
-      position: relative;
-      width: 100%;
-      border-radius: 16px;
-      overflow: hidden;
-      background: #000;
-      border: 1px solid #e5e7eb;
-    }
+.result{
+margin-top:20px;
+padding:15px;
+background:#f9fafb;
+border-radius:8px;
+border:1px solid #ddd;
+}
 
-    video {
-      width: 100%;
-      height: 320px;
-      object-fit: cover;
-      display: block;
-      background: #000;
-    }
+</style>
 
-    .scan-line {
-      position: absolute;
-      left: 10%;
-      top: 50%;
-      width: 80%;
-      height: 2px;
-      background: red;
-      box-shadow: 0 0 12px red;
-      opacity: 0.85;
-    }
-
-    .hint {
-      margin-top: 10px;
-      font-size: 13px;
-      color: #6b7280;
-      text-align: center;
-    }
-
-    .status {
-      margin-top: 16px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      background: #eff6ff;
-      color: #1d4ed8;
-      font-size: 14px;
-    }
-
-    .manual {
-      margin-top: 16px;
-      display: flex;
-      gap: 8px;
-    }
-
-    input {
-      flex: 1;
-      height: 46px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      padding: 0 12px;
-      font-size: 15px;
-    }
-
-    button {
-      height: 46px;
-      border: 0;
-      border-radius: 10px;
-      padding: 0 14px;
-      background: #2563eb;
-      color: white;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .secondary {
-      background: #111827;
-    }
-
-    .result {
-      margin-top: 18px;
-      border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 16px;
-      background: #fafafa;
-    }
-
-    .result h2 {
-      margin: 0 0 6px;
-      font-size: 20px;
-    }
-
-    .muted {
-      color: #6b7280;
-      font-size: 14px;
-    }
-
-    .ok {
-      background: #ecfdf5;
-      color: #065f46;
-    }
-
-    .warn {
-      background: #fff7ed;
-      color: #9a3412;
-    }
-  </style>
 </head>
+
 <body>
-  <div class="app">
-    <h1>Scanner de Produto</h1>
-    <p class="sub">Aponte a câmera para o código de barras</p>
 
-    <div class="camera-box">
-      <video id="video" muted playsinline></video>
-      <div class="scan-line"></div>
-    </div>
+<h2>Scanner de Código de Barras</h2>
 
-    <div id="status" class="status">
-      Inicializando câmera...
-    </div>
+<video id="video"></video>
 
-    <div class="manual">
-      <input id="codigoManual" type="text" placeholder="Digite o código manualmente" />
-      <button id="btnManual">Buscar</button>
-      <button id="btnRestart" class="secondary" type="button">Reiniciar</button>
-    </div>
+<div id="resultado"></div>
 
-    <div id="resultado"></div>
-  </div>
+<script>
 
-  <script>
-    let reader = null;
-    let lastCode = "";
-    let lastReadAt = 0;
-    let started = false;
+const video = document.getElementById("video")
+const resultado = document.getElementById("resultado")
 
-    const videoEl = document.getElementById("video");
-    const statusEl = document.getElementById("status");
-    const resultEl = document.getElementById("resultado");
-    const manualEl = document.getElementById("codigoManual");
-    const btnManual = document.getElementById("btnManual");
-    const btnRestart = document.getElementById("btnRestart");
+let lastCode = ""
 
-    function setStatus(message, type = "info") {
-      statusEl.className = "status";
-      if (type === "ok") statusEl.classList.add("ok");
-      if (type === "warn") statusEl.classList.add("warn");
-      statusEl.textContent = message;
-    }
+const hints = new Map()
 
-    function vibrate() {
-      if ("vibrate" in navigator) {
-        navigator.vibrate(120);
-      }
-    }
+hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true)
 
-    function mostrarProduto(codigo) {
-      if (codigo === "7894900530025") {
-        resultEl.innerHTML = `
-          <div class="result">
-            <h2>💧 Garrafa Água 1 Litro</h2>
-            <div class="muted">Código de barras: ${codigo}</div>
-          </div>
-        `;
-        setStatus("Produto encontrado automaticamente.", "ok");
-      } else {
-        resultEl.innerHTML = `
-          <div class="result">
-            <h2>Produto não encontrado</h2>
-            <div class="muted">Código lido: ${codigo}</div>
-          </div>
-        `;
-        setStatus("Código lido, mas não localizado na base.", "warn");
-      }
-    }
+const reader = new ZXingBrowser.BrowserMultiFormatReader(hints)
 
-    function processarCodigo(codigo) {
-      const now = Date.now();
+reader.decodeFromVideoDevice(null, video, (result, err) => {
 
-      // Evita leituras duplicadas do mesmo código em sequência
-      if (codigo === lastCode && now - lastReadAt < 3000) {
-        return;
-      }
+if(result){
 
-      lastCode = codigo;
-      lastReadAt = now;
+const codigo = result.text
 
-      vibrate();
-      mostrarProduto(codigo);
-    }
+if(codigo === lastCode) return
 
-    async function iniciarScannerAutomatico() {
-      try {
-        if (started && reader) {
-          return;
-        }
+lastCode = codigo
 
-        setStatus("Solicitando acesso à câmera...");
-        reader = new ZXingBrowser.BrowserMultiFormatReader();
-        started = true;
+mostrarProduto(codigo)
 
-        // null => deixa o ZXing escolher a câmera, preferindo ambiente/traseira
-        await reader.decodeFromVideoDevice(null, videoEl, (result, error) => {
-          if (result) {
-            const codigo = result.getText ? result.getText() : result.text;
-            processarCodigo(codigo);
-          }
+}
 
-          // erros de tentativa de leitura durante a varredura são normais
-        });
+})
 
-        setStatus("Scanner ativo. Aponte para o código de barras.");
-      } catch (err) {
-        console.error(err);
-        started = false;
-        setStatus("Não foi possível acessar a câmera. Verifique HTTPS, permissão e navegador.", "warn");
-      }
-    }
+function mostrarProduto(codigo){
 
-    function pararScanner() {
-      try {
-        if (reader) {
-          reader.reset();
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        started = false;
-      }
-    }
+if(codigo === "7894900530025"){
 
-    btnManual.addEventListener("click", () => {
-      const codigo = manualEl.value.trim();
-      if (!codigo) {
-        setStatus("Digite um código para buscar manualmente.", "warn");
-        return;
-      }
-      processarCodigo(codigo);
-    });
+resultado.innerHTML = `
+<div class="result">
+<h3>💧 Garrafa Água 1 Litro</h3>
+Código: ${codigo}
+</div>
+`
 
-    btnRestart.addEventListener("click", async () => {
-      pararScanner();
-      resultEl.innerHTML = "";
-      setStatus("Reiniciando scanner...");
-      await iniciarScannerAutomatico();
-    });
+}else{
 
-    window.addEventListener("load", async () => {
-      await iniciarScannerAutomatico();
-    });
+resultado.innerHTML = `
+<div class="result">
+Produto não encontrado<br>
+Código: ${codigo}
+</div>
+`
 
-    window.addEventListener("beforeunload", () => {
-      pararScanner();
-    });
+}
 
-    document.addEventListener("visibilitychange", async () => {
-      if (document.hidden) {
-        pararScanner();
-      } else {
-        await iniciarScannerAutomatico();
-      }
-    });
-  </script>
+}
+
+</script>
+
 </body>
 </html>
